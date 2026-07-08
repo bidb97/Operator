@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cf7c68a83d8770c43b33c838f6e1988b, type: 3}
+  m_Name: Surface Background Parallax
+  m_EditorClassIdentifier: Assembly-CSharp::Operator.Data.AssetPack
+  entries:
+  - assetId: 0
+    asset: {fileID: 2800000, guid: 25fe56e22f179dc45ad4ba44d07ebec1, type: 3}
+  - assetId: 1
+    asset: {fileID: 2800000, guid: 49ead61eeaec2d14c904d154dcd8088b, type: 3}
+  - assetId: 2
+    asset: {fileID: 2800000, guid: eeead5104a8aee242a83ca61505edfe9, type: 3}
+  - assetId: 3
+    asset: {fileID: 2800000, guid: 0b1984804b7304b40b220d1fef9dacde, type: 3}
+  - assetId: 4
+    asset: {fileID: 2800000, guid: 927bc323086d42742939499422358a12, type: 3}
+  - assetId: 5
+    asset: {fileID: 2800000, guid: c3c799cfe056fd64fa9320be122a1504, type: 3}

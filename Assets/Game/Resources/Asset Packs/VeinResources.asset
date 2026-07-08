@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cf7c68a83d8770c43b33c838f6e1988b, type: 3}
+  m_Name: VeinResources
+  m_EditorClassIdentifier: Assembly-CSharp::Operator.Data.AssetPack
+  entries:
+  - assetId: synth
+    asset: {fileID: 21300000, guid: c0f74ffcd4e914b4ab9b90755f7df0fa, type: 3}
+  - assetId: rellit
+    asset: {fileID: 21300000, guid: 93a20ac1b12dc9b40ab7a3b55a6a9c04, type: 3}
+  - assetId: lumin
+    asset: {fileID: 21300000, guid: deca5915ec42b3b41bf9c094c6ba8967, type: 3}
+  - assetId: devault
+    asset: {fileID: 21300000, guid: 08110a3f1272f9545978591c5df0461c, type: 3}

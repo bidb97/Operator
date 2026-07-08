@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cf7c68a83d8770c43b33c838f6e1988b, type: 3}
+  m_Name: Depth
+  m_EditorClassIdentifier: Assembly-CSharp::Operator.Data.AssetRegistry
+  entries:
+  - assetId: edge
+    asset: {fileID: 11400000, guid: 8b4d2f0a5c3e49f7b9162c8d3f5e7a90, type: 2}
+  - assetId: sediment
+    asset: {fileID: 11400000, guid: 792aeda6173f779489d8c92882be0d7d, type: 2}
+  - assetId: scale
+    asset: {fileID: 11400000, guid: b4000d008ed56044aacef1eb8db7a5e7, type: 2}
+  - assetId: arc
+    asset: {fileID: 11400000, guid: 659ff46207852be43b21226bb5e02934, type: 2}
+  - assetId: frame
+    asset: {fileID: 11400000, guid: 065caef3bda65b948ae0ed0e78e16cff, type: 2}
+  - assetId: seam
+    asset: {fileID: 11400000, guid: d2895bb99602a44499456ff6b00c4417, type: 2}
+  - assetId: mantle
+    asset: {fileID: 11400000, guid: ca0e0bc56d8c8734d868dd176aa3fcae, type: 2}
+  - assetId: halo
+    asset: {fileID: 11400000, guid: eaa57061172c77a41b53ed7bed05f129, type: 2}

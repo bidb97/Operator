@@ -1,0 +1,89 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b3e7a1c94f2d48e6a9051c8d2f4e6b7a, type: 3}
+  m_Name: DefaultWorldGen
+  m_EditorClassIdentifier: Assembly-CSharp::Operator.Data.WorldGenConfig
+  worldSeed: 45
+  randomWorldSeed: 1
+  worldRadius: 5000
+  layerDepthPercents:
+  - 8
+  - 15
+  - 25
+  - 55
+  - 68
+  - 80
+  - 92
+  - 100
+  layerBoundaryWarpPercent: 5
+  layerWarpScaleX: 0.04
+  layerWarpScaleY: 0.008
+  inclusionClusterSpacing: 35
+  inclusionClusterSizeMin: 14
+  inclusionClusterSizeMax: 54
+  inclusionClusterRadiusMin: 8
+  inclusionClusterRadiusMax: 8
+  inclusionClusterChance: 0.45
+  inclusionMaxTierDelta: 2
+  resourceClusterSpacing: 100
+  resourceClusterSizeMin: 3
+  resourceClusterSizeMax: 10
+  resourceClusterRadiusMin: 2
+  resourceClusterRadiusMax: 4
+  resourceClusterChance: 0.45
+  resourceDeVaultMinDepthPercent: 75
+  resourceDeVaultClusterWeight: 0.12
+  resourceScatterChance: 0.006
+  wormLengthMin: 5
+  wormLengthMax: 15
+  wormMinDepthPercent: 0
+  wormWildChance: 0.6
+  wormMinPerSector: 1
+  wormWakeRadius: 14
+  wormTickInterval: 1
+  wormVeinAggressiveChance: 0.75
+  wormWildAggressiveChance: 0.5
+  wormAttackDurationMin: 15
+  wormAttackDurationMax: 30
+  wormAttackRetryCooldown: 15
+  wormAttackBurstChance: 0.35
+  wormAudioRadius: 50
+  wormAggroRadius: 16
+  wormLoseAggroRadius: 24
+  wormAttackCooldown: 3
+  wormChargeDuration: 2
+  wormChargeStepInterval: 0.25
+  wormDashStepInterval: 0.12
+  wormDashLength: 2
+  magneticSectorCells: 30
+  magneticSpawnBlockSectors: 3
+  magneticSectorChance: 0.35
+  magneticMinDepthPercent: 5
+  magneticSmallChance: 0.7
+  magneticSmallRadiusMinSectors: 0.4
+  magneticSmallRadiusMaxSectors: 0.6
+  magneticSmallRoamMinCells: 12
+  magneticSmallRoamMaxCells: 35
+  magneticLargeRoamMinCells: 60
+  magneticLargeRoamMaxCells: 140
+  magneticRadiusXMinSectors: 1
+  magneticRadiusXMaxSectors: 2
+  magneticRadiusYMinSectors: 1
+  magneticRadiusYMaxSectors: 2
+  magneticMinSeparationCells: 80
+  magneticDriftSpeedMin: 0.5
+  magneticDriftSpeedMax: 1.5
+  magneticDirectionChangeMin: 8
+  magneticDirectionChangeMax: 18
+  magneticBoostMultiplier: 1.5
+  magneticSlowMultiplier: 0.45
+  magneticAgainstMultiplier: 0.08
