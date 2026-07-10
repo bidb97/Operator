@@ -43,6 +43,7 @@ namespace Operator.Missions
         [SerializeField] int mineClusterCount = 2;
 
         [Header("Брифинг")]
+        [SerializeField] SpeakerProfile speaker;
         [SerializeField] string speakerTitle = "VIYA";
         [TextArea(3, 8)]
         [SerializeField] string briefingText =
@@ -63,7 +64,9 @@ namespace Operator.Missions
         public int FixedCellY => fixedCellY;
         public ResourceType MineResource => mineResource;
         public int MineClusterCount => mineClusterCount;
-        public string SpeakerTitle => speakerTitle;
+        public SpeakerProfile Speaker => speaker;
+        public string SpeakerTitle => speaker != null ? speaker.Title : speakerTitle;
+        public Sprite SpeakerAvatar => speaker != null ? speaker.Avatar : null;
         public string BriefingText => briefingText;
 
         public SectorAddress GetFixedSectorAddress() =>

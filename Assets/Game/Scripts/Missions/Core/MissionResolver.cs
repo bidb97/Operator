@@ -101,6 +101,7 @@ namespace Operator.Missions.Core
                 MineResource = template.MineResource,
                 MineClusterCount = template.MineClusterCount,
                 SpeakerTitle = template.SpeakerTitle,
+                SpeakerAvatar = template.SpeakerAvatar,
                 BriefingText = FormatBriefingText(template, resolved)
             };
         }

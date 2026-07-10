@@ -1,3 +1,4 @@
+using Operator.Bootstrap;
 using Operator.Depth.Core;
 using Operator.Drone.Unity;
 using Operator.Managers;
@@ -39,10 +40,11 @@ namespace Operator.Audio.Unity
 
         void Update()
         {
-            if (engine == null || drone == null)
-            {
+            if (NewGameLoadFlow.IsBuilding)
                 return;
-            }
+
+            if (engine == null || drone == null || !engine.enabled)
+                return;
 
             var working = drone.IsMoving || drone.IsDrilling || drone.IsRotating;
             var inGarage = IsInGarage();

@@ -15,6 +15,7 @@ namespace Operator.Missions.Core
         public ResourceType MineResource;
         public int MineClusterCount;
         public string SpeakerTitle;
+        public Sprite SpeakerAvatar;
         public string BriefingText;
 
         public Vector2Int TargetCell => new(TargetCellX, TargetCellY);

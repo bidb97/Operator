@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using Operator.Bootstrap;
 using Operator.Depth.Core;
@@ -22,6 +23,7 @@ namespace Operator.Depth.Unity
         [SerializeField] Tilemap tilemapBack;
         [SerializeField] ResourcesOverlay resourcesOverlay;
         [SerializeField] int visiblePadding = 1;
+        [SerializeField] float buildFrameBudgetMs = 6f;
         [SerializeField]
         [Tooltip("Editor / Development Build: не снимать тайлы за экраном. Release-билд всегда снимает.")]
         bool debugKeepOffscreenTiles;
@@ -31,6 +33,8 @@ namespace Operator.Depth.Unity
         CellRect _visibleRect;
         bool _hasVisibleRect;
         Vector3Int _clipCell = new(int.MinValue, int.MinValue, int.MinValue);
+
+        public float BuildProgress { get; private set; }
         float _clipProgressStep = -1f;
         float _clipFacingAngle;
 
@@ -87,6 +91,9 @@ namespace Operator.Depth.Unity
 
         void LateUpdate()
         {
+            if (NewGameLoadFlow.IsBuilding)
+                return;
+
             if (tilemap == null)
             {
                 return;
@@ -149,6 +156,64 @@ namespace Operator.Depth.Unity
 
             _visibleRect = rect;
             _hasVisibleRect = true;
+            BuildProgress = 1f;
+        }
+
+        public IEnumerator SyncVisibleAreaAsync(
+            CoreWorld world,
+            AssetManager assets,
+            Camera cam,
+            int worldSeed = 0)
+        {
+            if (tilemap == null || world == null || assets == null || cam == null)
+            {
+                BuildProgress = 1f;
+                yield break;
+            }
+
+            if (worldSeed == 0)
+                worldSeed = GameManager.Instance?.Session?.Seed ?? 0;
+
+            var rect = ComputeVisibleRect(cam, world, visiblePadding);
+            if (_hasVisibleRect && rect.Equals(_visibleRect))
+            {
+                BuildProgress = 1f;
+                yield break;
+            }
+
+            if (ShouldEvictOffscreen && _hasVisibleRect)
+            {
+                foreach (var cell in CollectCellsOutsideRect(rect))
+                    UnpaintCell(cell, worldSeed);
+            }
+
+            var totalCells = (rect.YMax - rect.YMin + 1) * (rect.XMax - rect.XMin + 1);
+            var processed = 0;
+            var budget = buildFrameBudgetMs * 0.001f;
+            var sliceEnd = Time.realtimeSinceStartup + budget;
+            BuildProgress = 0f;
+
+            for (var y = rect.YMin; y <= rect.YMax; y++)
+            {
+                for (var x = rect.XMin; x <= rect.XMax; x++)
+                {
+                    processed++;
+                    var logical = new Vector2Int(x, y);
+                    if (!_paintedCells.Contains(logical))
+                        PaintCell(world, assets, worldSeed, x, y);
+
+                    if (Time.realtimeSinceStartup < sliceEnd)
+                        continue;
+
+                    BuildProgress = totalCells > 0 ? (float)processed / totalCells : 1f;
+                    yield return null;
+                    sliceEnd = Time.realtimeSinceStartup + budget;
+                }
+            }
+
+            _visibleRect = rect;
+            _hasVisibleRect = true;
+            BuildProgress = 1f;
         }
 
         public void RefreshCell(CoreWorld world, AssetManager assets, int x, int y)

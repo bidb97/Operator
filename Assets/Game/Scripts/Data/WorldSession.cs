@@ -24,5 +24,9 @@ namespace Operator.Data
 
         /// <summary>Секторы, где жилы видны игроку (миссия на добычу выдана).</summary>
         public List<SectorAddress> RevealedVeinSectors = new();
+
+        /// <summary>Предзагруженная следующая миссия (фоновый pathfind).</summary>
+        public int PreloadedForIndex = -1;
+        public ActiveMission PreloadedMission;
     }
 }

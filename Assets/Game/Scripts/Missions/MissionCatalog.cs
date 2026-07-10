@@ -19,5 +19,20 @@ namespace Operator.Missions
 
             return missions[index];
         }
+
+        public MissionTemplate FindByTemplateId(string templateId)
+        {
+            if (missions == null || string.IsNullOrEmpty(templateId))
+                return null;
+
+            for (var i = 0; i < missions.Length; i++)
+            {
+                var mission = missions[i];
+                if (mission != null && mission.TemplateId == templateId)
+                    return mission;
+            }
+
+            return null;
+        }
     }
 }

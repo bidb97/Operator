@@ -1,3 +1,5 @@
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using Operator.Data;
 using Operator.Depth.Core;
@@ -11,7 +13,30 @@ namespace Operator.Missions
     /// </summary>
     public static class MissionReachability
     {
-        const int MaxAttempts = 64;
+        public const int MaxAttempts = 64;
+
+        public sealed class ResolveOutcome
+        {
+            public bool Success;
+            public ResolvedMission Resolved;
+        }
+
+        sealed class StandCellOutcome
+        {
+            public bool Success;
+            public Vector2Int StandCell;
+            public float OutboundFuel;
+            public float OutboundCharge;
+            public int PathMoves;
+        }
+
+        sealed class AttemptOutcome
+        {
+            public bool Success;
+            public ResolvedMission Resolved;
+        }
+
+        const float PathfindFrameBudgetMs = 6f;
 
         static readonly Vector2Int[] Cardinals =
         {
@@ -27,7 +52,8 @@ namespace Operator.Missions
             WorldGenConfig worldGen,
             DroneLimitsConfig limits,
             int sectorSize,
-            out ResolvedMission resolved)
+            out ResolvedMission resolved,
+            int missionIndex = -1)
         {
             resolved = default;
 
@@ -40,90 +66,290 @@ namespace Operator.Missions
                 return false;
             }
 
+            if (missionIndex < 0)
+                missionIndex = session.NextMissionIndex;
+
             var world = new World(session.Seed, session.Radius, worldGen);
             var fuelBudget = limits.FuelMax * (1f - limits.MissionSafetyMargin);
             var chargeBudget = limits.ChargeMax * (1f - limits.MissionSafetyMargin);
             var cargoBudget = limits.CargoMax * (1f - limits.MissionSafetyMargin);
             var laserTier = session.LaserTier;
-            var missionIndex = session.NextMissionIndex;
 
             for (var attempt = 0; attempt < MaxAttempts; attempt++)
             {
-                var sector = MissionResolver.RollSector(template, session.Seed, missionIndex, attempt);
-                Vector2Int target;
-
-                if (template.MissionType == MissionType.MineClusters)
-                {
-                    if (!TryGetMatchingVein(
-                            sector,
-                            session.Seed,
-                            session.Radius,
-                            worldGen,
-                            template.MineResource,
-                            out var vein))
-                    {
-                        continue;
-                    }
-
-                    target = new Vector2Int(vein.AnchorX, vein.AnchorY);
-                }
-                else
-                {
-                    if (!TryRollScannerTarget(
-                            template,
-                            world,
-                            sector,
-                            session.Seed,
-                            sectorSize,
-                            missionIndex,
-                            attempt,
-                            laserTier,
-                            out target))
-                    {
-                        continue;
-                    }
-                }
-
-                if (!TryFindStandCell(
-                        world,
-                        target,
-                        laserTier,
+                if (TryResolveAttempt(
+                        template,
+                        session,
+                        worldGen,
                         limits,
+                        sectorSize,
+                        world,
                         fuelBudget,
                         chargeBudget,
-                        out _,
-                        out var outboundFuel,
-                        out var outboundCharge,
-                        out var pathMoves))
+                        cargoBudget,
+                        laserTier,
+                        missionIndex,
+                        attempt,
+                        out resolved))
                 {
-                    continue;
+                    return true;
                 }
-
-                var returnFuel = pathMoves * limits.FuelPerCell;
-                if (outboundFuel + returnFuel > fuelBudget || outboundCharge > chargeBudget)
-                {
-                    continue;
-                }
-
-                if (template.MissionType == MissionType.MineClusters)
-                {
-                    var rock = world.GetCell(world.WrapX(target.x), target.y);
-                    var miningCharge = template.MineClusterCount
-                        * limits.GetChargeForRockTier(RockLayers.LaserTier(rock.Rock));
-                    var maxVeinCells = template.MineClusterCount * worldGen.ResourceClusterSizeMax;
-                    var cargo = maxVeinCells * limits.CargoPerVeinCell;
-
-                    if (outboundCharge + miningCharge > chargeBudget || cargo > cargoBudget)
-                    {
-                        continue;
-                    }
-                }
-
-                resolved = new ResolvedMission(template, sector, target);
-                return true;
             }
 
             return false;
+        }
+
+        public static IEnumerator TryResolveAsync(
+            MissionTemplate template,
+            WorldSession session,
+            WorldGenConfig worldGen,
+            DroneLimitsConfig limits,
+            int sectorSize,
+            ResolveOutcome outcome,
+            Action<float> onAttemptProgress = null,
+            int missionIndex = -1)
+        {
+            outcome.Success = false;
+            outcome.Resolved = default;
+
+            if (template == null
+                || session == null
+                || worldGen == null
+                || limits == null
+                || sectorSize <= 0)
+            {
+                yield break;
+            }
+
+            if (missionIndex < 0)
+                missionIndex = session.NextMissionIndex;
+            var world = new World(session.Seed, session.Radius, worldGen);
+            var fuelBudget = limits.FuelMax * (1f - limits.MissionSafetyMargin);
+            var chargeBudget = limits.ChargeMax * (1f - limits.MissionSafetyMargin);
+            var cargoBudget = limits.CargoMax * (1f - limits.MissionSafetyMargin);
+            var laserTier = session.LaserTier;
+            var logAt = Time.realtimeSinceStartup;
+
+            for (var attempt = 0; attempt < MaxAttempts; attempt++)
+            {
+                var attemptOutcome = new AttemptOutcome();
+                yield return TryResolveAttemptAsync(
+                    template,
+                    session,
+                    worldGen,
+                    limits,
+                    sectorSize,
+                    world,
+                    fuelBudget,
+                    chargeBudget,
+                    cargoBudget,
+                    laserTier,
+                    missionIndex,
+                    attempt,
+                    attemptOutcome);
+
+                if (attemptOutcome.Success)
+                {
+                    outcome.Success = true;
+                    outcome.Resolved = attemptOutcome.Resolved;
+                    onAttemptProgress?.Invoke(1f);
+                    Debug.Log(
+                        $"[MissionReachability] Цель найдена: попытка {attempt + 1}/{MaxAttempts}, " +
+                        $"id={template.TemplateId}");
+                    yield break;
+                }
+
+                onAttemptProgress?.Invoke((attempt + 1) / (float)MaxAttempts);
+
+                if (Time.realtimeSinceStartup - logAt >= 0.5f)
+                {
+                    logAt = Time.realtimeSinceStartup;
+                    Debug.Log(
+                        $"[MissionReachability] Попытка {attempt + 1}/{MaxAttempts}, id={template.TemplateId}...");
+                }
+
+                yield return null;
+            }
+        }
+
+        static IEnumerator TryResolveAttemptAsync(
+            MissionTemplate template,
+            WorldSession session,
+            WorldGenConfig worldGen,
+            DroneLimitsConfig limits,
+            int sectorSize,
+            World world,
+            float fuelBudget,
+            float chargeBudget,
+            float cargoBudget,
+            int laserTier,
+            int missionIndex,
+            int attempt,
+            AttemptOutcome outcome)
+        {
+            outcome.Success = false;
+            outcome.Resolved = default;
+
+            var sector = MissionResolver.RollSector(template, session.Seed, missionIndex, attempt);
+            Vector2Int target;
+
+            if (template.MissionType == MissionType.MineClusters)
+            {
+                if (!TryGetMatchingVein(
+                        sector,
+                        session.Seed,
+                        session.Radius,
+                        worldGen,
+                        template.MineResource,
+                        out var vein))
+                {
+                    yield break;
+                }
+
+                target = new Vector2Int(vein.AnchorX, vein.AnchorY);
+            }
+            else
+            {
+                if (!TryRollScannerTarget(
+                        template,
+                        world,
+                        sector,
+                        session.Seed,
+                        sectorSize,
+                        missionIndex,
+                        attempt,
+                        laserTier,
+                        out target))
+                {
+                    yield break;
+                }
+            }
+
+            var pathOutcome = new StandCellOutcome();
+            yield return TryFindStandCellAsync(
+                world,
+                target,
+                laserTier,
+                limits,
+                fuelBudget,
+                chargeBudget,
+                pathOutcome);
+
+            if (!pathOutcome.Success)
+                yield break;
+
+            var returnFuel = pathOutcome.PathMoves * limits.FuelPerCell;
+            if (pathOutcome.OutboundFuel + returnFuel > fuelBudget
+                || pathOutcome.OutboundCharge > chargeBudget)
+            {
+                yield break;
+            }
+
+            if (template.MissionType == MissionType.MineClusters)
+            {
+                var rock = world.GetCell(world.WrapX(target.x), target.y);
+                var miningCharge = template.MineClusterCount
+                    * limits.GetChargeForRockTier(RockLayers.LaserTier(rock.Rock));
+                var maxVeinCells = template.MineClusterCount * worldGen.ResourceClusterSizeMax;
+                var cargo = maxVeinCells * limits.CargoPerVeinCell;
+
+                if (pathOutcome.OutboundCharge + miningCharge > chargeBudget || cargo > cargoBudget)
+                    yield break;
+            }
+
+            outcome.Success = true;
+            outcome.Resolved = new ResolvedMission(template, sector, target);
+        }
+
+        static bool TryResolveAttempt(
+            MissionTemplate template,
+            WorldSession session,
+            WorldGenConfig worldGen,
+            DroneLimitsConfig limits,
+            int sectorSize,
+            World world,
+            float fuelBudget,
+            float chargeBudget,
+            float cargoBudget,
+            int laserTier,
+            int missionIndex,
+            int attempt,
+            out ResolvedMission resolved)
+        {
+            resolved = default;
+
+            var sector = MissionResolver.RollSector(template, session.Seed, missionIndex, attempt);
+            Vector2Int target;
+
+            if (template.MissionType == MissionType.MineClusters)
+            {
+                if (!TryGetMatchingVein(
+                        sector,
+                        session.Seed,
+                        session.Radius,
+                        worldGen,
+                        template.MineResource,
+                        out var vein))
+                {
+                    return false;
+                }
+
+                target = new Vector2Int(vein.AnchorX, vein.AnchorY);
+            }
+            else
+            {
+                if (!TryRollScannerTarget(
+                        template,
+                        world,
+                        sector,
+                        session.Seed,
+                        sectorSize,
+                        missionIndex,
+                        attempt,
+                        laserTier,
+                        out target))
+                {
+                    return false;
+                }
+            }
+
+            if (!TryFindStandCell(
+                    world,
+                    target,
+                    laserTier,
+                    limits,
+                    fuelBudget,
+                    chargeBudget,
+                    out _,
+                    out var outboundFuel,
+                    out var outboundCharge,
+                    out var pathMoves))
+            {
+                return false;
+            }
+
+            var returnFuel = pathMoves * limits.FuelPerCell;
+            if (outboundFuel + returnFuel > fuelBudget || outboundCharge > chargeBudget)
+            {
+                return false;
+            }
+
+            if (template.MissionType == MissionType.MineClusters)
+            {
+                var rock = world.GetCell(world.WrapX(target.x), target.y);
+                var miningCharge = template.MineClusterCount
+                    * limits.GetChargeForRockTier(RockLayers.LaserTier(rock.Rock));
+                var maxVeinCells = template.MineClusterCount * worldGen.ResourceClusterSizeMax;
+                var cargo = maxVeinCells * limits.CargoPerVeinCell;
+
+                if (outboundCharge + miningCharge > chargeBudget || cargo > cargoBudget)
+                {
+                    return false;
+                }
+            }
+
+            resolved = new ResolvedMission(template, sector, target);
+            return true;
         }
 
         static bool TryGetMatchingVein(
@@ -148,6 +374,87 @@ namespace Operator.Missions
             }
 
             return vein.Type == resource;
+        }
+
+        static IEnumerator TryFindStandCellAsync(
+            World world,
+            Vector2Int target,
+            int laserTier,
+            DroneLimitsConfig limits,
+            float fuelBudget,
+            float chargeBudget,
+            StandCellOutcome outcome)
+        {
+            outcome.Success = false;
+            outcome.StandCell = default;
+            outcome.OutboundFuel = 0f;
+            outcome.OutboundCharge = 0f;
+            outcome.PathMoves = 0;
+
+            var goals = new List<Vector2Int>();
+            CollectStandGoals(world, target, laserTier, goals);
+            if (goals.Count == 0)
+                yield break;
+
+            var goalSet = new HashSet<Vector2Int>(goals);
+            var starts = GetGarageStartCells(world);
+            if (starts.Count == 0)
+                yield break;
+
+            var best = new Dictionary<Vector2Int, (float fuel, float charge, int moves)>();
+            var open = new List<Vector2Int>();
+
+            foreach (var start in starts)
+            {
+                best[start] = (0f, 0f, 0);
+                open.Add(start);
+            }
+
+            var budget = PathfindFrameBudgetMs * 0.001f;
+            var sliceEnd = Time.realtimeSinceStartup + budget;
+
+            while (open.Count > 0)
+            {
+                var pick = SelectNextOpenIndex(open, best, goals);
+                var current = open[pick];
+                open.RemoveAt(pick);
+                var state = best[current];
+
+                if (goalSet.Contains(current))
+                {
+                    outcome.Success = true;
+                    outcome.StandCell = current;
+                    outcome.OutboundFuel = state.fuel;
+                    outcome.OutboundCharge = state.charge;
+                    outcome.PathMoves = state.moves;
+                    yield break;
+                }
+
+                for (var d = 0; d < Cardinals.Length; d++)
+                {
+                    var next = StepCell(current, Cardinals[d], world);
+                    if (!TryMoveCost(world, next, laserTier, limits, state, out var nextState))
+                        continue;
+
+                    var roundTripFuel = nextState.fuel + nextState.moves * limits.FuelPerCell;
+                    if (nextState.charge > chargeBudget || roundTripFuel > fuelBudget)
+                        continue;
+
+                    if (!best.TryGetValue(next, out var existing)
+                        || Score((existing.fuel, existing.charge, existing.moves)) > Score(nextState))
+                    {
+                        best[next] = nextState;
+                        if (!open.Contains(next))
+                            open.Add(next);
+                    }
+                }
+
+                if (Time.realtimeSinceStartup < sliceEnd)
+                    continue;
+
+                yield return null;
+                sliceEnd = Time.realtimeSinceStartup + budget;
+            }
         }
 
         static bool TryFindStandCell(

@@ -5,6 +5,7 @@ using Operator.Missions;
 using Operator.Missions.Core;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Operator.Missions.Unity
 {
@@ -16,9 +17,11 @@ namespace Operator.Missions.Unity
         [SerializeField] GameObject briefingPanel;
         [SerializeField] TextMeshProUGUI speakerText;
         [SerializeField] TextMeshProUGUI messageText;
+        [SerializeField] Image avatarImage;
         [SerializeField] NavigationHud navigationHud;
 
         bool _wasAtBase;
+        ActiveMission _trackedMission;
 
         void Awake()
         {
@@ -35,16 +38,31 @@ namespace Operator.Missions.Unity
             {
                 navigationHud = GetComponent<NavigationHud>();
             }
+
+            if (avatarImage == null && briefingPanel != null)
+            {
+                var avatar = briefingPanel.transform.Find("Avatar");
+                if (avatar != null)
+                    avatarImage = avatar.GetComponent<Image>();
+            }
         }
 
         void Start()
         {
             _wasAtBase = IsAtBase();
+            _trackedMission = GameBootstrap.Instance?.Session?.ActiveMission;
             RefreshMissionPresentation(forceBriefing: true);
         }
 
         void Update()
         {
+            var mission = GameBootstrap.Instance?.Session?.ActiveMission;
+            if (!ReferenceEquals(mission, _trackedMission))
+            {
+                _trackedMission = mission;
+                RefreshMissionPresentation(forceBriefing: false);
+            }
+
             var atBase = IsAtBase();
             if (atBase != _wasAtBase)
             {
@@ -78,9 +96,32 @@ namespace Operator.Missions.Unity
                 {
                     messageText.text = mission.BriefingText ?? string.Empty;
                 }
+
+                if (avatarImage != null)
+                {
+                    var avatar = ResolveAvatar(mission);
+                    if (avatar != null)
+                    {
+                        avatarImage.sprite = avatar;
+                        avatarImage.preserveAspect = true;
+                        avatarImage.enabled = true;
+                    }
+                }
             }
 
             SetBriefingVisible(showBriefing);
+        }
+
+        Sprite ResolveAvatar(ActiveMission mission)
+        {
+            if (mission == null)
+                return null;
+
+            if (mission.SpeakerAvatar != null)
+                return mission.SpeakerAvatar;
+
+            var template = missionCatalog?.FindByTemplateId(mission.TemplateId);
+            return template?.SpeakerAvatar;
         }
 
         void SetBriefingVisible(bool visible)
