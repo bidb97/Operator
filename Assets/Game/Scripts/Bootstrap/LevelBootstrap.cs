@@ -196,7 +196,8 @@ namespace Operator.Bootstrap
 
             if (drillRoot != null)
             {
-                drillRoot.position = WorldGrid.DroneCellToWorld(
+                var savedPosition = GameBootstrap.Instance?.SavedDronePosition;
+                drillRoot.position = savedPosition ?? WorldGrid.DroneCellToWorld(
                     new Vector2Int(GarageBounds.ShaftX, GarageBounds.TopY));
             }
 

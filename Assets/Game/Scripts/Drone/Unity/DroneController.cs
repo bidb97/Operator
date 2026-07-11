@@ -1,3 +1,4 @@
+using System;
 using DG.Tweening;
 using Operator.Depth.Core;
 using Operator.Depth.Unity;
@@ -43,6 +44,8 @@ namespace Operator.Drone.Unity
         public bool IsMoving { get; private set; }
         public bool IsDrilling => _isDrilling;
         public float DrillProgress => _drillProgress;
+
+        public event Action ArrivedAtBase;
 
         void Awake()
         {
@@ -495,6 +498,7 @@ namespace Operator.Drone.Unity
                 {
                     SnapFacing(GarageDownAngle);
                     _garageHomingRotation = false;
+                    ArrivedAtBase?.Invoke();
                 });
         }
 

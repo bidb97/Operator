@@ -3,24 +3,17 @@ using Operator.Depth.Core;
 using Operator.Drone.Unity;
 using Operator.Missions;
 using Operator.Missions.Core;
-using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace Operator.Missions.Unity
 {
-    /// <summary>Миссии: автовыдача, брифинг, маркер цели, HUD сектора.</summary>
+    /// <summary>Миссии: автовыдача, маркер цели, HUD сектора.</summary>
     public class MissionManager : MonoBehaviour
     {
         [SerializeField] MissionCatalog missionCatalog;
         [SerializeField] Transform drone;
-        [SerializeField] GameObject briefingPanel;
-        [SerializeField] TextMeshProUGUI speakerText;
-        [SerializeField] TextMeshProUGUI messageText;
-        [SerializeField] Image avatarImage;
         [SerializeField] NavigationHud navigationHud;
 
-        bool _wasAtBase;
         ActiveMission _trackedMission;
 
         void Awake()
@@ -38,20 +31,12 @@ namespace Operator.Missions.Unity
             {
                 navigationHud = GetComponent<NavigationHud>();
             }
-
-            if (avatarImage == null && briefingPanel != null)
-            {
-                var avatar = briefingPanel.transform.Find("Avatar");
-                if (avatar != null)
-                    avatarImage = avatar.GetComponent<Image>();
-            }
         }
 
         void Start()
         {
-            _wasAtBase = IsAtBase();
             _trackedMission = GameBootstrap.Instance?.Session?.ActiveMission;
-            RefreshMissionPresentation(forceBriefing: true);
+            RefreshTarget();
         }
 
         void Update()
@@ -60,16 +45,32 @@ namespace Operator.Missions.Unity
             if (!ReferenceEquals(mission, _trackedMission))
             {
                 _trackedMission = mission;
-                RefreshMissionPresentation(forceBriefing: false);
-            }
-
-            var atBase = IsAtBase();
-            if (atBase != _wasAtBase)
-            {
-                _wasAtBase = atBase;
-                RefreshMissionPresentation(forceBriefing: false);
+                RefreshTarget();
             }
         }
+
+        void RefreshTarget()
+        {
+            var mission = GameBootstrap.Instance?.Session?.ActiveMission;
+
+            if (mission == null)
+            {
+                navigationHud?.HideTarget();
+                return;
+            }
+
+            navigationHud?.ShowTarget(mission.TargetCell);
+        }
+
+        // Показ брифинга миссии на панели отключён — панель теперь DialoguePanel,
+        // текст миссии переезжает в журнал. Код ниже оставлен для журнала.
+        /*
+        [SerializeField] GameObject briefingPanel;
+        [SerializeField] TextMeshProUGUI speakerText;
+        [SerializeField] TextMeshProUGUI messageText;
+        [SerializeField] Image avatarImage;
+
+        bool _wasAtBase;
 
         void RefreshMissionPresentation(bool forceBriefing)
         {
@@ -78,11 +79,8 @@ namespace Operator.Missions.Unity
             if (mission == null)
             {
                 SetBriefingVisible(false);
-                navigationHud?.HideTarget();
                 return;
             }
-
-            navigationHud?.ShowTarget(mission.TargetCell);
 
             var showBriefing = forceBriefing || IsAtBase();
             if (showBriefing)
@@ -142,5 +140,6 @@ namespace Operator.Missions.Unity
             var cell = WorldGrid.WorldToCell(drone.position);
             return cell.x == GarageBounds.ShaftX && cell.y <= GarageBounds.SecondCell.y;
         }
+        */
     }
 }

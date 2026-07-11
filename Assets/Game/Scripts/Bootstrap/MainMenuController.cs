@@ -8,6 +8,7 @@ namespace Operator.Bootstrap
     public class MainMenuController : MonoBehaviour
     {
         [SerializeField] Button _newGameButton;
+        [SerializeField] Button _continueGameButton;
         [SerializeField] string _introSceneName = "Intro";
         [SerializeField] string _gameSceneName = "Game";
         [SerializeField] CanvasGroup _overlay;
@@ -31,7 +32,20 @@ namespace Operator.Bootstrap
 
         void Awake()
         {
-            _newGameButton.onClick.AddListener(StartNewGame);
+            var hasSave = GameBootstrap.Instance != null && GameBootstrap.Instance.HasSave;
+
+            if (hasSave && _continueGameButton != null)
+            {
+                _newGameButton.gameObject.SetActive(false);
+                _continueGameButton.gameObject.SetActive(true);
+                _continueGameButton.onClick.AddListener(StartNewGame); // TODO: продолжить сохранённую игру без интро
+            }
+            else
+            {
+                _newGameButton.gameObject.SetActive(true);
+                _continueGameButton?.gameObject.SetActive(false);
+                _newGameButton.onClick.AddListener(StartNewGame);
+            }
         }
 
         void StartNewGame()
