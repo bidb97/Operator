@@ -48,6 +48,9 @@ namespace Operator.Audio.Unity
                 return;
             }
 
+            EnsurePlaying(surfaceMusic);
+            EnsurePlaying(depthMusic);
+
             var inGarage = IsInGarage(GetListenerCell());
             var targetSurface = inGarage ? surfaceMaxVolume : 0f;
             var targetDepth = inGarage ? 0f : depthMaxVolume;

@@ -21,11 +21,20 @@ namespace Operator.Bootstrap
         [SerializeField] string gameSceneName = "Game";
 
         [Header("Timing")]
-        [SerializeField] float startInterval = 1.2f;
+        [SerializeField] float startInterval = 0.7f;
         [SerializeField] float minInterval = 0.08f;
-        [SerializeField] float intervalDecay = 0.92f;
+        [SerializeField] float intervalDecay = 0.9f;
         [SerializeField] float minIntroDuration = 6f;
-        [SerializeField] int minFullLoops = 2;
+        [SerializeField] int minFullLoops = 3;
+
+        [Header("End")]
+        [SerializeField] float blackHoldDuration = 1f;
+        [SerializeField] AudioClip wakeAlarmClip;
+
+        [Header("Scale")]
+        [SerializeField] float startScale = 0.05f;
+        [SerializeField] float endOverflow = 1.4f;
+        [SerializeField] float scaleCurve = 1f;
 
         [Header("Audio")]
         [SerializeField] AudioSource audioSource;
@@ -37,7 +46,10 @@ namespace Operator.Bootstrap
         float _introStartedAt;
         int _index;
         int _completedLoops;
+        int _slidesShown;
         bool _running;
+        float _resolvedEndScale;
+        bool _wakeAlarmStarted;
 
         void Awake()
         {
@@ -86,10 +98,12 @@ namespace Operator.Bootstrap
             }
 
             EnsureBlackBackdrop();
+            EnsureIntroCanvas();
             EnsureIntroCameraBlack();
+            GameScenePresentation.SetEnabled(gameObject.scene, true);
             GameScenePresentation.SetEnabled(gameSceneName, false);
 
-            slideImage.enabled = true;
+            slideImage.enabled = false;
 
             _running = true;
             _introStartedAt = Time.unscaledTime;
@@ -97,14 +111,32 @@ namespace Operator.Bootstrap
             _index = 0;
             _timer = 0f;
             _completedLoops = 0;
+            _slidesShown = 0;
+            _resolvedEndScale = 0f;
+            _wakeAlarmStarted = false;
 
-            Canvas.ForceUpdateCanvases();
-            ShowSlide(_index);
             return true;
+        }
+
+        IEnumerator ShowFirstSlide()
+        {
+            Canvas.ForceUpdateCanvases();
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+            WarmupEndScale();
+            ShowSlide(_index);
+            _timer = 0f;
+        }
+
+        IEnumerator WaitForSceneLoad(AsyncOperation load)
+        {
+            while (load.progress < 0.9f)
+                yield return null;
         }
 
         IEnumerator RunSlidesAndEnterGame()
         {
+            yield return ShowFirstSlide();
             yield return RunSlides();
             yield return RunSlidesEndSequence();
             CompletePreloadedIntro();
@@ -117,6 +149,9 @@ namespace Operator.Bootstrap
 
             var load = SceneManager.LoadSceneAsync(gameSceneName);
             load.allowSceneActivation = false;
+
+            yield return WaitForSceneLoad(load);
+            yield return ShowFirstSlide();
 
             while (true)
             {
@@ -141,12 +176,17 @@ namespace Operator.Bootstrap
 
         IEnumerator RunSlidesEndSequence()
         {
-            if (audioSource == null || slidesEndClip == null)
-                yield break;
+            CutToBlackAndStartWakeAlarm();
 
-            audioSource.PlayOneShot(slidesEndClip);
-
-            yield return new WaitForSecondsRealtime(slidesEndClip.length);
+            if (audioSource != null && _wakeAlarmStarted)
+            {
+                while (audioSource.isPlaying)
+                    yield return null;
+            }
+            else if (blackHoldDuration > 0f)
+            {
+                yield return new WaitForSecondsRealtime(blackHoldDuration);
+            }
         }
 
         IEnumerator RunSlides()
@@ -162,7 +202,7 @@ namespace Operator.Bootstrap
 
         IEnumerator RunSlideFrame()
         {
-            _timer += Time.unscaledDeltaTime;
+            _timer += Mathf.Min(Time.unscaledDeltaTime, 0.05f);
 
             if (_timer >= _interval)
             {
@@ -172,18 +212,22 @@ namespace Operator.Bootstrap
                 if (_index == slides.Length - 1)
                     _completedLoops++;
 
-                if (!AreSlidesDone())
+                if (!AreLoopsDone())
                 {
                     _index = (_index + 1) % slides.Length;
                     ShowSlide(_index);
                 }
+                else
+                    CutToBlackAndStartWakeAlarm();
             }
 
             yield return null;
         }
 
+        bool AreLoopsDone() => _completedLoops >= minFullLoops;
+
         bool AreSlidesDone() =>
-            _completedLoops >= minFullLoops
+            AreLoopsDone()
             && Time.unscaledTime - _introStartedAt >= minIntroDuration;
 
         void CompletePreloadedIntro()
@@ -229,6 +273,35 @@ namespace Operator.Bootstrap
             rect.localScale = Vector3.one;
         }
 
+        void CutToBlackAndStartWakeAlarm()
+        {
+            slideImage.enabled = false;
+
+            if (_wakeAlarmStarted || audioSource == null || wakeAlarmClip == null)
+                return;
+
+            _wakeAlarmStarted = true;
+            audioSource.PlayOneShot(wakeAlarmClip);
+        }
+
+        void EnsureIntroCanvas()
+        {
+            var canvas = slideImage.canvas?.rootCanvas;
+            if (canvas == null)
+                return;
+
+            var rect = canvas.GetComponent<RectTransform>();
+            if (rect == null)
+                return;
+
+            rect.localScale = Vector3.one;
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            rect.anchoredPosition = Vector2.zero;
+        }
+
         void EnsureIntroCameraBlack()
         {
             foreach (var camera in GetComponentsInChildren<Camera>(true))
@@ -242,9 +315,72 @@ namespace Operator.Bootstrap
         {
             slideImage.sprite = slides[index];
             slideImage.preserveAspect = true;
+            ApplySlideScale();
+            slideImage.enabled = true;
 
             if (audioSource != null && slideChangeClip != null)
                 audioSource.PlayOneShot(slideChangeClip);
+        }
+
+        void ApplySlideScale()
+        {
+            var total = minFullLoops * slides.Length;
+            var progress = total > 1 ? (float)_slidesShown / (total - 1) : 0f;
+            progress = Mathf.Clamp01(progress);
+
+            if (scaleCurve > 1f)
+                progress = Mathf.Pow(progress, scaleCurve);
+
+            var endScale = ResolveScreenOverflowScale();
+            var scale = Mathf.Lerp(startScale, endScale, progress);
+            slideImage.rectTransform.localScale = Vector3.one * scale;
+            _slidesShown++;
+        }
+
+        void WarmupEndScale()
+        {
+            _resolvedEndScale = 0f;
+            ResolveScreenOverflowScale();
+        }
+
+        float ResolveScreenOverflowScale()
+        {
+            if (_resolvedEndScale > 0f)
+                return _resolvedEndScale;
+
+            var rect = slideImage.rectTransform;
+            var baseSize = rect.sizeDelta;
+            if (baseSize.x <= 0f || baseSize.y <= 0f)
+                baseSize = new Vector2(800f, 450f);
+
+            var canvasSize = GetCanvasPixelSize();
+            var fillScale = Mathf.Max(canvasSize.x / baseSize.x, canvasSize.y / baseSize.y);
+            if (fillScale <= 0f)
+                fillScale = 1f;
+
+            _resolvedEndScale = fillScale * endOverflow;
+            return _resolvedEndScale;
+        }
+
+        Vector2 GetCanvasPixelSize()
+        {
+            var canvas = slideImage.canvas?.rootCanvas;
+            if (canvas != null)
+            {
+                var scaler = canvas.GetComponent<CanvasScaler>();
+                if (scaler != null && scaler.uiScaleMode == CanvasScaler.ScaleMode.ScaleWithScreenSize)
+                    return scaler.referenceResolution;
+
+                var canvasRect = canvas.GetComponent<RectTransform>();
+                if (canvasRect != null)
+                {
+                    var size = canvasRect.rect.size;
+                    if (size.x > 1f && size.y > 1f)
+                        return size;
+                }
+            }
+
+            return new Vector2(Screen.width, Screen.height);
         }
 
 #if UNITY_EDITOR

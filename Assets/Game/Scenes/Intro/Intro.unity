@@ -210,7 +210,7 @@ RectTransform:
   m_GameObject: {fileID: 228484081}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 510974235}
@@ -503,13 +503,18 @@ MonoBehaviour:
   - {fileID: 7157561037332017152, guid: 9587c86eb08d8684eba03692ca0f631f, type: 3}
   - {fileID: 4164744761163438241, guid: ff5df6423e9a18643a10eaa585f68231, type: 3}
   gameSceneName: Game
-  startInterval: 1.2
+  startInterval: 0.9
   minInterval: 0.08
-  intervalDecay: 0.92
+  intervalDecay: 0.9
   minIntroDuration: 2
   minFullLoops: 2
+  blackHoldDuration: 1
+  wakeAlarmClip: {fileID: 8300000, guid: e7bc5a5f121591f4392f0df0ae5dd49a, type: 3}
+  startScale: 0.5
+  endOverflow: 3
+  scaleCurve: 1
   audioSource: {fileID: 999028754}
-  slideChangeClip: {fileID: 8300000, guid: 9f23d7bcf884bb547931bebc46806002, type: 3}
+  slideChangeClip: {fileID: 8300000, guid: e6ee0f18f7b5c834fabe6cf06a3b6fd9, type: 3}
   slidesEndClip: {fileID: 8300000, guid: a051f9f54e3178243be3f912560d0d8c, type: 3}
 --- !u!82 &999028754
 AudioSource:
@@ -522,7 +527,7 @@ AudioSource:
   serializedVersion: 4
   OutputAudioMixerGroup: {fileID: 0}
   m_audioClip: {fileID: 0}
-  m_Resource: {fileID: 0}
+  m_Resource: {fileID: 8300000, guid: e6ee0f18f7b5c834fabe6cf06a3b6fd9, type: 3}
   m_PlayOnAwake: 0
   m_Volume: 1
   m_Pitch: 1

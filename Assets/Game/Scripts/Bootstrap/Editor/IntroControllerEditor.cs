@@ -17,8 +17,13 @@ namespace Operator.Bootstrap.Editor
             "startInterval",
             "minInterval",
             "intervalDecay",
+            "minFullLoops",
+            "blackHoldDuration",
+            "wakeAlarmClip",
+            "slideChangeClip",
             "startScale",
-            "endScale",
+            "endOverflow",
+            "scaleCurve",
         };
 
         public override void OnInspectorGUI()
